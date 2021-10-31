@@ -1,58 +1,67 @@
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import numpy as np
-import cv2
-import os
+from tensorflow.keras.preprocessing.image import ImageDataGenerator  # Image Augmentation
+import numpy as np  # Matrix Operations
+import cv2  # Loading images
+import os  # Handling files
+import matplotlib.pyplot as plt  # Graphing Images
+from tqdm import tqdm  # Progress Bar
 
-TRAIN_DATA_GENERATOR = ImageDataGenerator()
-VAL_DATA_GENERATOR = ImageDataGenerator()
-TEST_DATA_GENERATOR = ImageDataGenerator()
 
 class Load:
-    def __init__(self, path: str, image_augmentation=None) -> None:
+    def __init__(self, path: str, image_augmentation: dict = None) -> None:
         self.path: str = path
+        self.image_augmentation = image_augmentation
         self.labels: list = os.listdir(os.path.join(self.path, "train"))
-        self._dataset: dict = {"train": None, "val": None, "test": None}
+        self.dataset: dict = {"train": None, "val": None, "test": None}
 
         self._load()
-
-        if image_augmentation:
+        if self.image_augmentation:
             self._augment()
 
-    def _augment(self):
-        self._dataset["train"] = TRAIN_DATA_GENERATOR.flow(self._dataset["train"]).as_numpy()
-        self._dataset["val"] = VAL_DATA_GENERATOR.flow(self._dataset["val"]).as_numpy()
-        self._dataset["test"] = TEST_DATA_GENERATOR.flow(self._dataset["test"]).as_numpy()
+    def _augment(self) -> None:
+        for subset, generator in self.image_augmentation.items():
+            if generator:
+                flow = generator.flow(self.dataset[subset][0])
+                self.dataset[subset] = np.concatenate([[flow.next()[0], flow.next()[1]]
+                                                       for _ in range(generator.__len__())])
 
     def _load(self) -> None:
-        for key in self._dataset.keys():
+        for key in self.dataset.keys():
             path = os.path.join(self.path, key)
-            data = []
+            images, labels = [], []
 
-            for label in self.labels:
-                encoded_label = self._encode(label)
-                images = self._load_imgs(os.path.join(path, label), encoded_label)
-                data.append(images)
+            for label in tqdm(self.labels, desc=f"{key.upper()}", ncols=75):
+                labels.extend(self._encode(label))
+                images.extend(self._load_imgs(os.path.join(path, label)))
 
-            self._dataset[key] = np.asarray(data)
+            images, labels = np.asarray(images), np.asarray(labels)
+            self.dataset[key] = (images, labels)
 
     @staticmethod
-    def _load_imgs(path, label) -> np.array:
+    def _load_imgs(path) -> np.array:
         imgs = []
         for image in os.listdir(path):
-            tmp_path = os.path.join(path, image)
-            imgs.append([cv2.imread(tmp_path), label])
+            if image.endswith(".jpg"):
+                tmp_path = os.path.join(path, image)
+                image = cv2.imread(tmp_path, cv2.IMREAD_GRAYSCALE)
+                image = np.reshape(image, (1, 200, 200, 1))
+                imgs.extend(image)
         return np.asarray(imgs)
 
     def _encode(self, label) -> np.array:
-        possible_labels = np.zeros(len(self.labels))
+        possible_labels = np.zeros((len(self.labels), 1))
         possible_labels[self.labels.index(label)] = 1
         return possible_labels
-
-    def get_dataset(self) -> dict:
-        return self._dataset
 
 
 if __name__ == "__main__":
     os.chdir(os.path.expanduser("~"))
-    print(os.getcwd())
-    load("/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet/data/raw/data")
+    image_aug = {
+        "train": ImageDataGenerator(rescale=1 / 255),
+        "val": None,
+        "test": None,
+    }
+
+    loader = Load("/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet/data/raw/data", image_aug)
+    dataset = loader.dataset
+    plt.imshow(dataset["train"][0][0])
+    plt.show()
