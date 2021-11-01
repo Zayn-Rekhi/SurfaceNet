@@ -9,7 +9,7 @@ from tqdm import tqdm  # Progress Bar
 class Load:
     def __init__(self, path: str, image_augmentation: dict = None) -> None:
         self.path: str = path
-        self.image_augmentation = image_augmentation
+        self.image_augmentation: dict = image_augmentation
         self.labels: list = os.listdir(os.path.join(self.path, "train"))
         self.dataset: dict = {"train": None, "val": None, "test": None}
 
@@ -18,6 +18,10 @@ class Load:
             self._augment()
 
     def _augment(self) -> None:
+        """
+        Utlizes the tensorflow ImageDataGenerator to augment images
+        :return: None
+        """
         for subset, generator in self.image_augmentation.items():
             if generator:
                 flow = generator.flow(self.dataset[subset][0])
@@ -25,6 +29,10 @@ class Load:
                                                        for _ in range(generator.__len__())])
 
     def _load(self) -> None:
+        """
+        Loads all the images in the given the path
+        :return: None
+        """
         for key in self.dataset.keys():
             path = os.path.join(self.path, key)
             images, labels = [], []
@@ -33,21 +41,30 @@ class Load:
                 labels.extend(self._encode(label))
                 images.extend(self._load_imgs(os.path.join(path, label)))
 
-            images, labels = np.asarray(images), np.asarray(labels)
-            self.dataset[key] = (images, labels)
+            self.dataset[key] = (np.asarray(images), np.asarray(labels))
 
     @staticmethod
     def _load_imgs(path) -> np.array:
+        """
+        Utilizes the path of the classes of images in order to store the images located in that directory.
+        :param path: Directory of feature
+        :return: Numpy array of images
+        """
         imgs = []
         for image in os.listdir(path):
             if image.endswith(".jpg"):
                 tmp_path = os.path.join(path, image)
-                image = cv2.imread(tmp_path, cv2.IMREAD_GRAYSCALE)
-                image = np.reshape(image, (1, 200, 200, 1))
+                image = np.reshape(cv2.imread(tmp_path, cv2.IMREAD_GRAYSCALE), (1, 200, 200, 1))
                 imgs.extend(image)
         return np.asarray(imgs)
 
     def _encode(self, label) -> np.array:
+        """
+        This functions use is to encode the label based off the one hot encoding method. It creates an empty array
+        (filled with zeros) and sets the label equal to one.
+        :param label: Number (0-15) that dictates the number to be set to 1
+        :return: One-hot encoded numpy array
+        """
         possible_labels = np.zeros((len(self.labels), 1))
         possible_labels[self.labels.index(label)] = 1
         return possible_labels
