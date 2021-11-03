@@ -26,7 +26,7 @@ class Load:
         self.path: str = path
         self.image_augmentation: bool = image_augmentation
         self.labels: list = os.listdir(os.path.join(self.path, "train"))
-        self.dataset: dict = {"train": None, "val": None, "test": None}
+        self.dataset: dict = {"train": None, "val": None, "test": None, "labels": self.labels}
 
         self._load()
         if self.image_augmentation:

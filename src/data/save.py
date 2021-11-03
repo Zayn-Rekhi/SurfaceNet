@@ -1,22 +1,20 @@
 from load import Load
 import os
-from PIL import Image
+import cv2
 import numpy as np
 
 PATH = "/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet/data/processed/data"
 
 
-def save(dataset: dict, labels: list, path: str) -> bool:
+def save(dataset: dict, path_to_save: str) -> bool:
+    labels = dataset["labels"]
     for subset, data in dataset.items():
-        folder_creator = map(lambda label: os.mkdir(os.path.join(path, subset, label)), labels)
+        map(lambda label: os.mkdir(os.path.join(path_to_save, subset, label)), labels)
 
-        count=0
-        for X, y in zip(data[0], data[1]):
-            img = Image.fromarray(X)
+        for i, (X, y) in enumerate(zip(data[0], data[1])):
             label = labels.index(y.index(1))
-            img_path = os.path.join(path, subset, label, count)
-            img.save(img_path)
-            count+=1
+            path = os.path.join(path_to_save, subset, label, f"{i}.jpg")
+            cv2.imwrite(path, X)
 
 
 if __name__ == "__main__":
