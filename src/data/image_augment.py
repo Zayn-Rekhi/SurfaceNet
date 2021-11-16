@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from datagen import Dataset
+from load import Dataset
 import numpy as np
 import random
 import scipy
@@ -16,12 +16,13 @@ class Rotation(Augmentor):
     def __init__(self, start=-360, end=360): 
         self.start = start
         self.end = end
+        self.augmented_data = []
 
-    def augment(self, images):
-        augmented_images = []
+    def augment(self, images): 
         for img in images:
             rand_range = random.randint(self.start, self.end)
-            augmented_images.append(scipy.ndimage.rotate(img, rand_range, reshape=False))
+            image = scipy.ndimage.rotate(img, rand_range, reshape=False)
+            self.augmented_images.append(image)
         return np.asarray(augmented_images)
 
     def __str__(self):
@@ -60,19 +61,18 @@ class Rescale(Augmentor):
 
 
 class ImageAugmentation:
-    def __init__(self, augment_config: set, progress: bool):
-        self.augment_config: set = augment_config
-        self.progress: bool = progress
+    def __init__(self, augment_config: list, show_progress: bool):
+        self.augment_config: list = augment_config
+        self.show_progress: bool = show_progress
         
-        if progress:
+        if show_progress:
             print("---------STARTING IMAGE AUG---------")
 
-    def apply(self, images: np.array):
-       
+    def apply(self, images: np.array): 
         image_shape = images.shape
         for amr in self.augment_config:
             images = amr.augment(images)
-            if self.progress:
+            if self.show_progress:
                 print(f"{amr}........DONE({images.shape})")
        
         assert images.shape[1:] == image_shape[1:], f"Augmented images shape don't match original"
@@ -81,19 +81,16 @@ class ImageAugmentation:
     
 
 if __name__ == "__main__":
-    augmentation_config = {
+    augmentation_config = [
         Rotation(start=-90, end=90),
         Flip(types = ("Horizontal", "Vertical")),  
-        Rescale(scale = 1./255)
-         
-    }
+        Rescale(scale = 1./255)         
+    ]
 
     dataset = Dataset("/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet/data/raw/data")
     train_x = dataset.data["train"][0][:5]
    
-    image_augment = ImageAugmentation(augment_config=augmentation_config,
-                                      progress=True)
- 
+    image_augment = ImageAugmentation(augment_config=augmentation_config, show_progress=True) 
     augmented_data = image_augment.apply(train_x)
     plt.imshow(augmented_data[0])
     plt.show()

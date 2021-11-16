@@ -21,12 +21,12 @@ GENERATORS = {
 }
 
 
-class Load:
+class Dataset:
     def __init__(self, path: str, image_augmentation: bool = False) -> None:
         self.path: str = path
         self.image_augmentation: bool = image_augmentation
         self.labels: list = os.listdir(os.path.join(self.path, "train"))
-        self.dataset: dict = {"train": None, "val": None, "test": None, "labels": self.labels}
+        self.data: dict = {"train": None, "val": None, "test": None}
 
         self._load()
         if self.image_augmentation:
@@ -48,7 +48,7 @@ class Load:
         Loads all the images in the given the path
         :return: None
         """
-        for key in self.dataset.keys():
+        for key in self.data.keys():
             path = os.path.join(self.path, key)
             images, labels = [], []
 
@@ -56,7 +56,7 @@ class Load:
                 images.extend(self._load_imgs(os.path.join(path, label)))
                 labels.extend(self._encode(label))
 
-            self.dataset[key] = (np.asarray(images, dtype=np.uint8), np.asarray(labels, dtype=np.uint8))
+            self.data[key] = (np.asarray(images, dtype=np.uint8), np.asarray(labels, dtype=np.uint8))
 
     @staticmethod
     @lru_cache(maxsize=None)
@@ -67,9 +67,9 @@ class Load:
         :return: Numpy array of images
         """
         imgs = []
-        for image in os.listdir(path):
-            if image.endswith(".jpg"):
-                tmp_path = os.path.join(path, image)
+        for image_path in os.listdir(path):
+            if image_path.endswith('.jpg'):
+                tmp_path = os.path.join(path, image_path)
                 image = np.reshape(cv2.imread(tmp_path, cv2.IMREAD_GRAYSCALE), (1, 200, 200, 1))
                 imgs.extend(image)
         return np.asarray(imgs, dtype=np.uint8)
