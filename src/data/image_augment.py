@@ -16,7 +16,7 @@ class Rotation(Augmentor):
     def __init__(self, start=-360, end=360): 
         self.start = start
         self.end = end
-        self.augmented_data = []
+        self._augmented_images = []
 
     def augment(self, images): 
         for img in images:
@@ -24,6 +24,10 @@ class Rotation(Augmentor):
             image = scipy.ndimage.rotate(img, rand_range, reshape=False)
             self.augmented_images.append(image)
         return np.asarray(augmented_images)
+
+    @property 
+    def augmented_images(self):
+        return self.augmented_data
 
     def __str__(self):
         return f"Rotation({self.start}, {self.end})"
