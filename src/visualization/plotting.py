@@ -8,7 +8,7 @@ def plot_imgs(images, names, labels, graph_shape = (5, 4)):
         for column in range(graph_shape[1]):
             img, name, label = images[count], names[count], labels[count]
 
-            axs[row, column].imshow(img)
+            axs[row, column].imshow(img, cmap='gray', vmin=0, vmax=255)
             axs[row, column].set_title(f"{name} | {label}", fontsize=10)
             count+=1
      

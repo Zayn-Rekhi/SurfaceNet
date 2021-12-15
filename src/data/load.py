@@ -3,9 +3,10 @@
 
 Class definition of data loading/processing/augmentation
 
+--path
+
 """
 
-from tensorflow.keras.preprocessing.image import ImageDataGenerator  # Image Augmentation
 import numpy as np  # Matrix Operations
 import cv2  # Loading images
 import os  # Handling files
@@ -14,6 +15,7 @@ from tqdm import tqdm  # Progress Bar
 import argparse  # Terminal
 from functools import lru_cache  # Cache Clearing
 import sys  # System Utility
+from typing import Tuple
 
 try:
     sys.path.insert(1, '../visualization')
@@ -21,35 +23,14 @@ try:
 except ImportError:
     pass
 
-GENERATORS = {
-    "train": ImageDataGenerator(rescale=1 / 255),
-    "val": None,
-    "test": None,
-}
-
 
 class Dataset:
-    def __init__(self, path: str, image_augmentation: bool = False) -> None:
+    def __init__(self, path: str) -> None:
         self.path: str = path
-        self.image_augmentation: bool = image_augmentation
-        self.labels: np.array = np.asarray(os.listdir(os.path.join(self.path, "train")), dtype=object)
-        print(self.labels)
+        self.labels: np.array = np.asarray(os.listdir(os.path.join(self.path, "train")), dtype=object) 
         self.data: dict = {"train": None, "val": None, "test": None}
 
         self._load()
-        if self.image_augmentation:
-            self._augment()
-
-    def _augment(self) -> None:
-        """
-        Utlizes the tensorflow ImageDataGenerator to augment images
-        :return: None
-        """
-        for subset, generator in GENERATORS.items():
-            if generator:
-                flow = generator.flow(self.dataset[subset][0])
-                self.dataset[subset] = np.concatenate([[flow.next()[0], flow.next()[1]]
-                                                       for _ in range(flow.__len__())])
 
     def _load(self) -> None:
         """
@@ -60,8 +41,7 @@ class Dataset:
             path = os.path.join(self.path, key)
             images, labels, names = [], [], []
 
-            #for label in tqdm(self.labels, desc=f"{key.upper()}", ncols=75):  
-            for label in self.labels:
+            for label in tqdm(self.labels, desc=f"{key.upper()}", ncols=75):  
                 loaded_imgs, loaded_names = self._load_imgs(os.path.join(path, label))
                 loaded_labels = self._encode(label)
                 
@@ -69,10 +49,11 @@ class Dataset:
                 labels.extend([loaded_labels for _ in loaded_imgs])
                 names.extend(loaded_names) 
             
-            self.data[key] = (np.asarray(images, dtype=np.uint8), np.asarray(labels, dtype=np.uint8), np.asarray(names, dtype=np.object))
+            self.data[key] = (np.asarray(images, dtype=np.uint8), 
+                              np.asarray(labels, dtype=np.uint8), 
+                              np.asarray(names, dtype=np.object))
 
-    @staticmethod
-    @lru_cache(maxsize=None)
+    @staticmethod 
     def _load_imgs(path) -> np.array:
         """
         Utilizes the path of the classes of images in order to store the images located in that directory.
@@ -99,28 +80,42 @@ class Dataset:
         possible_labels[np.array(self.labels == label)] = 1 
         return possible_labels
 
+    @lru_cache(maxsize=None)
+    def get_class(self, class_name: str, location: str, amt: int):
+        search_label = np.zeros((len(self.labels), 1))
+        search_label[np.array(self.labels == class_name)] = 1 
+        
+        idxs = [idx for idx, label in enumerate(self.data[location][1])  
+                                          if np.array_equal(label, search_label)] 
+        
+
+        imgs = self.data[location][0][idxs][:amt]      
+        labels = np.asarray([search_label] * amt, dtype=np.uint8)
+        names = self.data[location][2][idxs][:amt][:, 0]   
+        
+        assert imgs.shape[0] == labels.shape[0] == names.shape[0], "FUCKKK"
+
+        return imgs, labels, names
+
 
 if __name__ == "__main__":
+    from image_augment import *
+
     os.chdir(os.path.expanduser("~"))
     
     parser = argparse.ArgumentParser(description='State path of dataset')
     parser.add_argument('--path', metavar='path', type=str, help='Path to list')
-    parser.add_argument('--image_augment', metavar='image_augment', type=int, help='Augmentation')
     args = parser.parse_args()
 
-    path, image_augment = args.path, bool(args.image_augment)
-    loader = Dataset(path, image_augment)
-        
-    examples = loader.data["train"]
-    label_names = loader.labels
+    generators = {
+        "train": ImageAugmentation([ 
+                                    Rescale(scale = 1/255)], True),
+        "val": ImageAugmentation([Rescale(scale = 1./255)], True),
+        "test": ImageAugmentation([Rescale(scale = 1./255)], True),
+    }
+    loader = Dataset(args.path)
+    sample_imgs, sample_labels, sample_names = loader.get_class('rid', 'train', 20)
     
-    sample_indexes = np.linspace(start=0, stop=len(examples[0]), endpoint=False, retstep=10, dtype=np.int32) 
-    
-    sample_imgs = examples[0][sample_indexes[0]]     
-    sample_labels = examples[1][sample_indexes[0]]
-    sample_names = examples[2][sample_indexes[0]]
+    print(sample_names[0]) 
 
-    sample_names = sample_names[:, 0]
-    sample_labels = label_names[[np.where(sample == 1)[0] for sample in sample_labels]][:, 0] 
-    
     plot_imgs(sample_imgs, sample_names, sample_labels, graph_shape=(3, 3))
