@@ -49,9 +49,9 @@ class Dataset:
                 labels.extend([loaded_labels for _ in loaded_imgs])
                 names.extend(loaded_names) 
             
-            self.data[key] = (np.asarray(images, dtype=np.uint8), 
+            self.data[key] = [np.asarray(images, dtype=np.uint8), 
                               np.asarray(labels, dtype=np.uint8), 
-                              np.asarray(names, dtype=np.object))
+                              np.asarray(names, dtype=np.object)]
 
     @staticmethod 
     def _load_imgs(path) -> np.array:
@@ -64,7 +64,7 @@ class Dataset:
         for image_path in os.listdir(path):
             if image_path.endswith('.jpg'):
                 tmp_path = os.path.join(path, image_path)
-                image = np.reshape(cv2.imread(tmp_path, cv2.IMREAD_GRAYSCALE), (1, 200, 200, 1))                
+                image = np.reshape(cv2.imread(tmp_path, cv2.IMREAD_GRAYSCALE), (1, 1, 200, 200))                
                 names.append([image_path])
                 imgs.extend(image) 
         return np.asarray(imgs, dtype=np.uint8), np.asarray(names, dtype=np.object)
@@ -93,10 +93,19 @@ class Dataset:
         labels = np.asarray([search_label] * amt, dtype=np.uint8)
         names = self.data[location][2][idxs][:amt][:, 0]   
         
-        assert imgs.shape[0] == labels.shape[0] == names.shape[0], "FUCKKK"
+        assert imgs.shape[0] == labels.shape[0] == names.shape[0], "Not the same shape"
 
         return imgs, labels, names
-
+    
+    def to_batches(self, batch_size=10): 
+        num_labels = len(self.labels)
+        
+        for key, items in self.data.items():
+            total_batches = int(len(self.data[key][0]) / batch_size) 
+              
+            self.data[key][0] = np.array_split(items[0], total_batches) 
+            self.data[key][1] = np.array_split(items[1], total_batches)
+            self.data[key][2] = np.array_split(items[2], total_batches) 
 
 if __name__ == "__main__":
     from image_augment import *
