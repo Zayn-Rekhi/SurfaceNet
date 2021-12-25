@@ -1,31 +1,18 @@
-from network import CNN
+from network import Model, DEVICE
 import torch.optim as optim
 import torch.nn as nn
 import torch
 import sys 
 import numpy as np
-from termcolor import colored
 
 sys.path.append("../data")
 from load import Dataset
 from image_augment import ImageAugmentation, Rescale
 
 from torchmetrics import (Accuracy, AUC, F1, ROC)
+import wandb
 
-# ----------------------------- NETWORK ------------------------------------- #
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-cnn_network = CNN()
-hyperparams = {
-    'optimizer': optim.Adam(cnn_network.parameters(), lr=0.0001),
-    'loss': nn.CrossEntropyLoss(),
-    'metrics': [Accuracy(), AUC(), F1(), ROC()],
-}
-
-cnn_network.configure_hyperparams(hyperparams)
-cnn_network.to(device)
-
-
-# ----------------------------- DATA ------------------------------------- #
+# ----------------------------- DATA LOADING ------------------------------------- #
 generators = {
     'train': ImageAugmentation([Rescale(scale = 1/255)], True),
     'val': ImageAugmentation([Rescale(scale = 1./255)], True),
@@ -37,29 +24,32 @@ data_labels = data.labels
 training_data, validation_data, testing_data = data.data["train"], data.data["val"], data.data["test"]
 
 
-for epoch in range(100):  # loop over the dataset multiple times
+# ----------------------------- NETWORK ------------------------------------- #
+hyperparams = {
+    'lr': 0.001,
+    'batch_size': 64,
+    'epochs': 100,
+    'classes': data_labels,
+    'optimizer': 'Adam',
+    'loss_function': 'CE',
+    'metrics': [Accuracy(), AUC(), F1(), ROC()],
+}
 
-    i = 0 
-    for imgs, labels, names in zip(training_data[0], training_data[1], training_data[2]):
-        imgs = imgs / 255 
-        cnn_network.train(imgs, labels) 
+print("START") 
+model = Model(hyperparams)
 
+wandb.init(project="SurfaceNet", entity="zaynr")
+wandb.config = hyperparams
+wandb.watch(model, log_freq=100)
 
-        if i % 5 == 0 and i > 0:
-            correct = 0
-              correct += sum([1 for output, test_label in zip(outputs, test_labels)
-                                            if torch.argmax(output) == np.argmax(test_label)])
-                
-                for output, test_label in zip(outputs, test_labels):
-                    if torch.argmax(output) == np.argmax(test_label):
-                        print("Equal")
-                    else:
-                        print("NOT EQUAL")
-            print(correct)
-            print(correct/(len(testing_data[0])*32))
+for epoch in range(hyperparams["epochs"]):
+    for imgs, labels in zip(training_data[0], training_data[1]):
+        model.history.clear()
 
-                 
-        torch.cuda.empty_cache() 
-        i += 1
+        train_batch_imgs = torch.tensor(imgs).float()
+        train_batch_labels = torch.tensor(labels).float()
+       
+        model.train_batch(train_batch_imgs, train_batch_labels)
+        model.evaluate(test_imgs, test_labels)
 
-
+        wandb.log(model.history)

@@ -1,56 +1,63 @@
-import torch.nn as nn
-import torch.nn.functional as F
+from torchvision.models import resnext50_32x4d
+from torch import nn, optim
 import torch
-from matplotlib import pyplot as plt
 
-class CNN(nn.Module):
-    def __init__(self):
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+class Model(nn.Module):
+    def __init__(self, hyperparams):
         super().__init__()
-        # ------------------Model------------------ #
-        self.conv1 = nn.Conv2d(1, 8, 5, padding='same')
-        self.pool = nn.AvgPool2d(2, 2)
-        self.conv2 = nn.Conv2d(8, 16, 5, padding='same')
-        self.conv3 = nn.Conv2d(16, 32, 5, padding='same')
-        self.conv4 = nn.Conv2d(32, 64, 5, padding='same')
-        self.conv5 = nn.Conv2d(64, 128, 5, padding='same')
-        self.batch_norm = nn.BatchNorm1d(4608)
-        self.fc1 = nn.Linear(4608, 2048)
-        self.fc2 = nn.Linear(2048, 2048)
-        self.fc3 = nn.Linear(2048, 15)
-
-    def forward(self, x):
-        x = self.pool(F.elu(self.conv1(x))) 
-        x = self.pool(F.elu(self.conv2(x)))
-        x = self.pool(F.elu(self.conv3(x)))
-        x = self.pool(F.elu(self.conv4(x)))
-        x = self.pool(F.elu(self.conv5(x)))   
-        x = torch.flatten(x, 1)
-        x = self.batch_norm(x)
-        x = F.elu(self.fc1(x))
-        x = F.elu(self.fc2(x))
-        x = F.softmax(self.fc3(x)) 
-        return x
-    
-    def configure_hyperparams(self, hyperparams):
+        self.learning_rate = hyperparams['lr']        
+        self.epochs = hyperparams['epochs']
+        self.classes = hyperparams['classes']
         self.hyperparams = hyperparams
 
-    def train(self, X, y): 
-        imgs = torch.tensor(X).float().cuda()
-        labels = torch.tensor(y).float().cuda() 
+        self.net = resnext50_32x4d(num_classes=15)
+        self.net.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)        
+
+
+        #in_features = self.net.fc.in_features
+        #self.net.fc = nn.Linear(in_features, len(self.classes))
+        self.history = {}       
         
-        self.hyperparams['optimizer'].zero_grad()
-        outputs = self.forward(imgs)  
-        loss = self.hyperparams['loss'](outputs, labels)
+        self._configure_loss()
+        self._configure_optimizer()
+        
+
+
+    def _configure_loss(self):
+        if self.hyperparams['loss_function'] == "MSE": 
+            self.loss_function = nn.MSE()
+        elif self.hyperparams['loss_function'] == "CE": 
+            self.loss_function = nn.CrossEntropyLoss()
+
+    def _configure_optimizer(self):
+        if self.hyperparams['optimizer'] == "SGD":
+            self.optimizer = optim.SGD(self.parameters(), lr=self.learning_rate)
+        elif self.hyperparams['optimizer'] == "Adam":
+            self.optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+
+    def forward(self, x):
+        return self.net(x)
+
+    def train_batch(self, X, y):
+        self.optimizer.zero_grad()
+        output = self.forward(X)
+        loss = self.loss_function(output, y)
         loss.backward()
-        self.hyperparams['optimizer'].step()
-   
-    def validation(self, X, y):
+        self.optimizer.step() 
+        self.history['loss'] = loss 
+    
+    def val_batch(self, X, y):
         pass
 
     def evaluate(self, X, y): 
-        test_imgs = torch.tensor(X).float().cuda() 
-        outputs = self.forward(test_imgs)
-         
+        for metric in self.hyperparams['metrics']:
+            output = self.forward(X)
+            measure = metric(output, y)
+            self.history[metric.str()] = measure
 
-    
+
+
+
 
