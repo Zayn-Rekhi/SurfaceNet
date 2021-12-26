@@ -1,6 +1,8 @@
 from torchvision.models import resnext50_32x4d
 from torch import nn, optim
+from torch.nn import functional as F
 import torch
+import os
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -40,19 +42,28 @@ class Model(nn.Module):
         output = self.forward(X)
         loss = self.loss_function(output, y)
         loss.backward()
-        self.optimizer.step() 
+        self.optimizer.step()  
         return loss  
 
     def evaluate(self, y, predictions): 
-
+        
         for metric in self.hyperparams['metrics']: 
             print(f"{metric[0]}...........DONE")
             out = metric[1](y, predictions)
             self.history[metric[0]] = out
-        
-        self.history['loss'] = sum([F.cross_entropy(prediction, label) for prediction, label in zip(predictions, y)])/len(y)
+ 
         return self.history
 
 
 
+def save(PATH, model):
+    data = {
+        "model_state": model.state_dict(),
+        "optimizer_state": model.optimizer.state_dict(),
+        "loss_state": model.loss_function.state_dict(),
+        "history": model.history,
+    }
+    torch.save(data, PATH)
 
+def delete(PATH):
+    os.remove(PATH)

@@ -1,6 +1,6 @@
 import numpy as np
 
-SEED = 0 
+SEED = 101 
 
 def shuffle_array(*args):
     np.random.seed(seed=SEED)
