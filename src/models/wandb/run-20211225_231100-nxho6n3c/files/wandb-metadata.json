@@ -1,0 +1,24 @@
+{
+    "os": "Linux-5.11.0-43-generic-x86_64-with-glibc2.10",
+    "python": "3.8.8",
+    "heartbeatAt": "2021-12-26T04:11:03.295552",
+    "startedAt": "2021-12-26T04:11:00.216001",
+    "docker": null,
+    "gpu": "NVIDIA GeForce MX150",
+    "gpu_count": 1,
+    "cpu_count": 8,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "train.py",
+    "codePath": "src/models/train.py",
+    "git": {
+        "remote": "https://github.com/Zayn-Rekhi/MarsNet",
+        "commit": "7a5ec24c24b0efff81c37e5565b507efce458522"
+    },
+    "email": "rekhi.zayn@gmail.com",
+    "root": "/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet",
+    "host": "Mercury",
+    "username": "zayn",
+    "executable": "/home/zayn/anaconda3/envs/env/bin/python3"
+}
