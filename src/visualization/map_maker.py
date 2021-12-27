@@ -10,16 +10,18 @@ from torch.nn import functional as F
 from tqdm import tqdm
 
 from pathlib import Path
+import sys
 
+sys.path.insert(1, "../data")
+from ctx_image import CTX_Image, download_file
 
-from models import MarsModel
-from utils import CTX_Image, download_file
+sys.path.insert(1, "../models")
 from mrf import MRF
 
 torch.backends.cudnn.benchmark = True
 
 CTX_stripe = "G14_023651_2056_XI_25N148W"
-path = "data/raw/" + CTX_stripe + ".tiff"
+path = "../../data/raw/" + CTX_stripe + ".tiff"
 
 cutouts = {
     "D14_032794_1989_XN_18N282W": (1600, 11000, 7000, 14000),  # Jezero
@@ -36,7 +38,7 @@ links = {
 if not Path(path).exists():
     # Download file
     print("Dowloading...\n")
-    download_file(links[CTX_stripe], "data/raw/")
+    download_file(links[CTX_stripe], "../../data/raw/")
     print("...Done")
     
 
@@ -62,9 +64,7 @@ with tqdm(test_loader, desc="Testing", leave=False) as t:
     with torch.no_grad():
         for batch in t:
             x, center_pixels = batch
-            y_hat = model(x.to(device))
-
-            pred = torch.argmax(y_hat, dim=1).cpu()
+            pred = [1]
 
             image_pred.append(center_pixels.numpy())
             predictions.append(pred.numpy())

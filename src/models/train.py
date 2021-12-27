@@ -17,6 +17,8 @@ from sklearn.metrics import (accuracy_score,
 import wandb
 import gc
 import pandas as pd 
+import os 
+from tqdm import tqdm 
 
 # ----------------------------- DATA LOADING ------------------------------------- #
 generators = {
@@ -25,8 +27,8 @@ generators = {
     'test': ImageAugmentation([Rescale(scale = 1./255)], True),
 }
 data = Dataset(path="/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet/data/raw/data")
-data.to_batches(8, ['train', 'val'])
-data.to_batches(8, ['test'])
+data.to_batches(64, ['train'])
+data.to_batches(8, ['val', 'test'])
 data_labels = data.labels
 training_data, validation_data, testing_data = data.data["train"], data.data["val"], data.data["test"]
 
@@ -61,61 +63,39 @@ wandb.config = hyperparams
 wandb.watch(model, log_freq=100)"""
 
 for epoch in range(hyperparams["epochs"]):
+    
+    print(f"-----------------Starting Epoch {epoch}----------------")
+
     model.history.clear()
     train_loss = 0
-    for imgs, labels in zip(training_data[0][:5], training_data[1][:5]): 
+    for imgs, labels in tqdm(zip(training_data[0], training_data[1]), desc=f"Progress", ncols=200): 
         imgs = torch.tensor(imgs).float().to(DEVICE)
         labels = torch.tensor(labels).float().to(DEVICE)
          
         train_loss += model.train_batch(imgs, labels) 
         
-        gc.collect()
-        torch.cuda.empty_cache()
+    gc.collect()
+    torch.cuda.empty_cache()
 
-    model.history['train_loss'] = train_loss  
-    print(f"{epoch} COMPLETED ----- Loss({model.history['train_loss']})") 
+    model.history['train_loss'] = train_loss/len(training_data[0])  
+    print(f"Epoch {epoch}.........COMPLETED(Loss = {model.history['train_loss']})") 
     
-    val_labels, val_predictions = [], []
-    val_loss = 0
-    for val_imgs, val_label in zip(validation_data[0], validation_data[1]):      
-        val_imgs = torch.tensor(val_imgs).float().to(DEVICE)
-        val_labels_reg = torch.tensor([np.argmax(label) for label in val_label]).float().to(DEVICE)
+    test_predictions, test_labels = [], []
+    test_loss = 0
+    for test_imgs, test_label in zip(testing_data[0][:1], testing_data[1][:1]):      
+        test_imgs = torch.tensor(test_imgs).float().to(DEVICE)
+        test_label_reg = [np.argmax(label) for label in test_label]
         
-        outputs = model.forward(val_imgs)
-        val_loss += model.loss_function(outputs, val_labels_reg) 
-        prediction = [output.argmax() for output in outputs] 
+        loss, outputs = model.test_batch(test_imgs, torch.tensor(test_label).float().to(DEVICE))
+        test_loss += loss
+        prediction = [output.argmax() for output in outputs.detach().cpu().numpy()] 
+        
+        test_predictions.extend(prediction)
+        test_labels.extend(test_label_reg)
 
-        val_labels.extend(val_labels_reg)     
-        val_predictions.extend(prediction)
-
-    print(val_labels, val_predictions) 
-    print(np.ptp(val_labels), np.ptp(val_predictions))
-    model.history['val_loss'] = val_loss/len(validation_data[0])
-    evaluation = model.evaluate(val_labels, val_predictions)     
+    evaluation = model.evaluate(test_labels, test_predictions)    
+    model.history['test_loss'] = test_loss/len(testing_data[0])      
     save(os.path.join(model_save_path, f"model{epoch}.pt"), model)    
+    #wandb.log(evaluaj 
 
-
-    for key, value in evaluation.items():
-        print(f"{key} == {value}")
-    
-    print("\n\n\n")
-    #wandb.log(evaluation)   
-    if evaluation["accuracy"] > 0.05:
-        break
-    delete(os.path.join(model_save_path, f"model{epoch}.pt"))    
-
-test_predictions, test_labels = [], [] 
-for test_imgs, test_label in zip(testing_data[0], testing_data[1]):      
-    test_imgs = torch.tensor(test_imgs).float().to(DEVICE)
-    test_label = [np.argmax(label) for label in test_label]
-    
-    outputs = model.forward(test_imgs).detach().cpu().numpy() 
-    prediction = [output.argmax() for output in outputs] 
-    
-    test_predictions.extend(prediction)
-    test_labels.extend(test_label)
-
-evaluation = model.evaluate(test_labels, test_predictions)     
-evaluation = pd.DataFrame(evaluation)
-wandb.log({"Testing Results": evaluation})
 

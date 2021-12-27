@@ -44,13 +44,18 @@ class Model(nn.Module):
         loss.backward()
         self.optimizer.step()  
         return loss  
+    
+    def test_batch(self, X, y):
+        output = self.forward(X)
+        loss = self.loss_function(output, y)
+        return loss, output
 
     def evaluate(self, y, predictions): 
         
-        for metric in self.hyperparams['metrics']: 
-            print(f"{metric[0]}...........DONE")
+        for metric in self.hyperparams['metrics']:  
             out = metric[1](y, predictions)
             self.history[metric[0]] = out
+            print(f"{metric[0]}...........DONE")
  
         return self.history
 
