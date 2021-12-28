@@ -58,12 +58,11 @@ model = Model(hyperparams)
 model.to(DEVICE)
 model_save_path = "../../models"
 
-"""wandb.init(project="SurfaceNet", entity="zaynr")
-wandb.config = hyperparams
-wandb.watch(model, log_freq=100)"""
+#wandb.init(project="SurfaceNet", entity="zaynr")
+#wandb.config = hyperparams
+#wandb.watch(model, log_freq=100)
 
-for epoch in range(hyperparams["epochs"]):
-    
+for epoch in range(hyperparams["epochs"]): 
     print(f"-----------------Starting Epoch {epoch}----------------")
 
     model.history.clear()
@@ -81,23 +80,26 @@ for epoch in range(hyperparams["epochs"]):
     model.history['train_loss'] = train_loss/len(training_data[0])  
     print(f"Epoch {epoch}.........COMPLETED(Loss = {model.history['train_loss']})") 
     with torch.no_grad():    
-        test_predictions, test_labels = [], []
-        test_loss = 0
-        for test_imgs, test_label in zip(testing_data[0], testing_data[1]):      
-            test_imgs = torch.tensor(test_imgs/255).float().to(DEVICE)
-            test_label_reg = [np.argmax(label) for label in test_label]
+        val_predictions, val_labels = [], []
+        val_loss = 0
+        for val_imgs, val_label in zip(validation_data[0], validation_data[1]):      
+            val_imgs = torch.tensor(val_imgs/255).float().to(DEVICE)
+            val_label_reg = [np.argmax(label) for label in val_label]
             
-            loss, outputs = model.test_batch(test_imgs, torch.tensor(test_label).float().to(DEVICE))
-            test_loss += loss
+            loss, outputs = model.val_batch(val_imgs, torch.tensor(val_label).float().to(DEVICE))
+            val_loss += loss
             prediction = [output.argmax() for output in outputs.detach().cpu().numpy()] 
             
-            test_predictions.extend(prediction)
-            test_labels.extend(test_label_reg)
+            val_predictions.extend(prediction)
+            val_labels.extend(val_label_reg)
 
-        evaluation = model.evaluate(test_labels, test_predictions)    
-        model.history['test_loss'] = test_loss/len(testing_data[0])      
-    
+        evaluation = model.evaluate(val_labels, val_predictions)    
+        model.history['val_loss'] = val_loss/len(validation_data[0])      
+        self.lr_scheduler.step(model.history['val_loss'])
+
     save(os.path.join(model_save_path, f"model{epoch}.pt"), model)    
-    #wandb.log(evaluaj 
+    if epoch > 0:
+        delete(os.path.join(model_save_path, f"model{epoch-1}.pt"))
+    #wandb.log(evaluation) 
 
 

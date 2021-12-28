@@ -33,6 +33,7 @@ class Model(nn.Module):
             self.optimizer = optim.SGD(self.parameters(), lr=self.learning_rate)
         elif self.hyperparams['optimizer'] == "Adam":
             self.optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+        self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min')
 
     def forward(self, x):
         return self.net(x)
@@ -55,7 +56,7 @@ class Model(nn.Module):
         for metric in self.hyperparams['metrics']:  
             out = metric[1](y, predictions)
             self.history[metric[0]] = out
-            print(f"{metric[0]}...........DONE")
+            print(f"{metric[0]}...........DONE({out})")
  
         return self.history
 
