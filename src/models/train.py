@@ -55,6 +55,7 @@ hyperparams = {
 
  
 model = Model(hyperparams)
+model = nn.DataParallel(model)
 model.to(DEVICE)
 model_save_path = "../../models"
 
