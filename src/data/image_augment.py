@@ -48,11 +48,11 @@ class Flip(Augmentor):
 
 class Rescale(Augmentor):
     def __init__(self, scale: float):
-       self.scale = scale
+        self.scale = scale
 
     def augment(self, images: np.array):
-        return images * self.scale
-   
+        return images * self.scale 
+         
     def __str__(self):
        return f"Rescale({self.scale})"
 
@@ -70,14 +70,12 @@ class ImageAugmentation:
         image_shape = images.shape
         for amr in self.augment_config:  
             images = amr.augment(images)
-            
+            print(images) 
             if self.show_progress:
                 print(f"{amr}........DONE({images.shape})")
        
         assert images.shape == image_shape, f"Augmented images shape don't match original"
-
-        return images
-    
+        return images 
 
 if __name__ == "__main__":
     augmentation_config = [

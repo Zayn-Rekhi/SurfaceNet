@@ -20,15 +20,17 @@ import pandas as pd
 import os 
 from tqdm import tqdm 
 
-# ----------------------------- DATA LOADING ------------------------------------- #
+# ----------------------------- DATA LOADING ------------------------------------ #
 generators = {
     'train': ImageAugmentation([Rescale(scale = 1/255)], True),
     'val': ImageAugmentation([Rescale(scale = 1./255)], True),
     'test': ImageAugmentation([Rescale(scale = 1./255)], True),
 }
 data = Dataset(path="/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet/data/raw/data")
-data.to_batches(64, ['train'])
+#data.apply_augmentations(generators)
+data.to_batches(8, ['train'])
 data.to_batches(8, ['val', 'test'])
+
 data_labels = data.labels
 training_data, validation_data, testing_data = data.data["train"], data.data["val"], data.data["test"]
 
@@ -51,8 +53,6 @@ hyperparams = {
 }
 
 
-
-
  
 model = Model(hyperparams)
 model.to(DEVICE)
@@ -68,33 +68,35 @@ for epoch in range(hyperparams["epochs"]):
 
     model.history.clear()
     train_loss = 0
-    for imgs, labels in tqdm(zip(training_data[0], training_data[1]), desc=f"Progress", ncols=200): 
-        imgs = torch.tensor(imgs).float().to(DEVICE)
+    for imgs, labels in tqdm(zip(training_data[0], training_data[1]), desc=f"Progress", ncols=75): 
+        imgs = torch.tensor(imgs/255).float().to(DEVICE)
         labels = torch.tensor(labels).float().to(DEVICE)
          
-        train_loss += model.train_batch(imgs, labels) 
-        
+        train_loss += model.train_batch(imgs, labels)      
+        del imgs, labels 
+
     gc.collect()
     torch.cuda.empty_cache()
 
     model.history['train_loss'] = train_loss/len(training_data[0])  
     print(f"Epoch {epoch}.........COMPLETED(Loss = {model.history['train_loss']})") 
-    
-    test_predictions, test_labels = [], []
-    test_loss = 0
-    for test_imgs, test_label in zip(testing_data[0][:1], testing_data[1][:1]):      
-        test_imgs = torch.tensor(test_imgs).float().to(DEVICE)
-        test_label_reg = [np.argmax(label) for label in test_label]
-        
-        loss, outputs = model.test_batch(test_imgs, torch.tensor(test_label).float().to(DEVICE))
-        test_loss += loss
-        prediction = [output.argmax() for output in outputs.detach().cpu().numpy()] 
-        
-        test_predictions.extend(prediction)
-        test_labels.extend(test_label_reg)
+    with torch.no_grad():    
+        test_predictions, test_labels = [], []
+        test_loss = 0
+        for test_imgs, test_label in zip(testing_data[0], testing_data[1]):      
+            test_imgs = torch.tensor(test_imgs/255).float().to(DEVICE)
+            test_label_reg = [np.argmax(label) for label in test_label]
+            
+            loss, outputs = model.test_batch(test_imgs, torch.tensor(test_label).float().to(DEVICE))
+            test_loss += loss
+            prediction = [output.argmax() for output in outputs.detach().cpu().numpy()] 
+            
+            test_predictions.extend(prediction)
+            test_labels.extend(test_label_reg)
 
-    evaluation = model.evaluate(test_labels, test_predictions)    
-    model.history['test_loss'] = test_loss/len(testing_data[0])      
+        evaluation = model.evaluate(test_labels, test_predictions)    
+        model.history['test_loss'] = test_loss/len(testing_data[0])      
+    
     save(os.path.join(model_save_path, f"model{epoch}.pt"), model)    
     #wandb.log(evaluaj 
 

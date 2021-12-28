@@ -36,8 +36,8 @@ class Dataset:
     
     def apply_augmentations(self, augmentations):
         for key, value in augmentations.items():
-            self.data[key] = value.apply(self.data[key][0])
-    
+            self.data[key][0] = value.apply(self.data[key][0]) 
+
     def _load(self) -> None:
         """
         Loads all the images in the given the path
@@ -111,10 +111,10 @@ class Dataset:
         self.batch_size = batch_size 
         for key, items in self.data.items():
             if key in keys:
-                split_amt = int(self.data[key][0].shape[0] / self.batch_size)  
+                split_amt = int(self.data[key][0].shape[0] / self.batch_size)   
                 shuffled_arrays = shuffle_array(items[0][:self.batch_size * split_amt], 
-                                                items[1][:self.batch_size * split_amt], 
-                                                items[2][:self.batch_size * split_amt])
+                                                items[1][:self.batch_size * split_amt],      
+                                                items[2][:self.batch_size * split_amt]) 
                 
                 self.data[key][0] = np.split(shuffled_arrays[0], split_amt)
                 self.data[key][1] = np.split(shuffled_arrays[1], split_amt)
