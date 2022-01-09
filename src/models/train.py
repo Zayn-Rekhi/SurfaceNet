@@ -37,11 +37,12 @@ training_data, validation_data, testing_data = data.data["train"], data.data["va
 
 # ----------------------------- NETWORK ------------------------------------- #
 hyperparams = {
-    'lr': 0.0001,
+    'lr': 0.001,
     'batch_size': 8,
     'epochs': 300,
     'classes': data_labels,
-    'optimizer': 'Adam',
+    'optimizer': 'SGD',
+    'momentum': 0.9,
     'loss_function': 'CE',
     'metrics': [
         ("accuracy", lambda X, y: accuracy_score(X, y)),
@@ -50,25 +51,25 @@ hyperparams = {
         ("f1_score", lambda X, y: f1_score(X, y, average='macro')),
         ("confusion_matrix", lambda X, y: confusion_matrix(X, y)), 
     ],
+    'transfer_learning': False,
 }
 
 
  
 model = Model(hyperparams)
-model = nn.DataParallel(model)
 model.to(DEVICE)
 model_save_path = "../../models"
 
-#wandb.init(project="SurfaceNet", entity="zaynr")
-#wandb.config = hyperparams
-#wandb.watch(model, log_freq=100)
+wandb.init(project="SurfaceNet", entity="zaynr")
+wandb.config = hyperparams
+wandb.watch(model, log_freq=100)
 
 for epoch in range(hyperparams["epochs"]): 
     print(f"-----------------Starting Epoch {epoch}----------------")
 
     model.history.clear()
     train_loss = 0
-    for imgs, labels in tqdm(zip(training_data[0], training_data[1]), desc=f"Progress", ncols=75): 
+    for imgs, labels in tqdm(zip(training_data[0], training_data[1]), desc="Progress", ncols=75): 
         imgs = torch.tensor(imgs/255).float().to(DEVICE)
         labels = torch.tensor(labels).float().to(DEVICE)
          
@@ -87,20 +88,22 @@ for epoch in range(hyperparams["epochs"]):
             val_imgs = torch.tensor(val_imgs/255).float().to(DEVICE)
             val_label_reg = [np.argmax(label) for label in val_label]
             
-            loss, outputs = model.val_batch(val_imgs, torch.tensor(val_label).float().to(DEVICE))
+            loss, outputs = model.test_batch(val_imgs, torch.tensor(val_label).float().to(DEVICE))
             val_loss += loss
             prediction = [output.argmax() for output in outputs.detach().cpu().numpy()] 
             
             val_predictions.extend(prediction)
             val_labels.extend(val_label_reg)
 
-        evaluation = model.evaluate(val_labels, val_predictions)    
-        model.history['val_loss'] = val_loss/len(validation_data[0])      
-        self.lr_scheduler.step(model.history['val_loss'])
+        model.history['val_loss'] = val_loss/len(validation_data[0])
+
+        evaluation = model.evaluate(val_labels, val_predictions)          
+        model.history['confusion_matrix'] = pd.DataFrame(model.history['confusion_matrix'])
+        
+        if model.history['val_loss'] < 1:
+            model.lr_scheduler.step(model.history['val_loss'])
 
     save(os.path.join(model_save_path, f"model{epoch}.pt"), model)    
-    if epoch > 0:
-        delete(os.path.join(model_save_path, f"model{epoch-1}.pt"))
-    #wandb.log(evaluation) 
+    wandb.log(model.history) 
 
 

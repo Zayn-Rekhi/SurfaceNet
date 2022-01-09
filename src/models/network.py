@@ -14,8 +14,16 @@ class Model(nn.Module):
         self.classes = hyperparams['classes']
         self.hyperparams = hyperparams
 
-        self.net = resnext50_32x4d(num_classes=15)
+        self.net = resnext50_32x4d(pretrained=True)
+        if hyperparams['transfer_learning']:
+            print("starting transfer learning")
+            for param in self.net.parameters():
+                param.requires_grad = False
+
         self.net.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)        
+
+        num_ftrs = self.net.fc.in_features
+        self.net.fc = nn.Linear(num_ftrs, hyperparams['classes'])
 
         self._configure_loss()
         self._configure_optimizer()
@@ -30,7 +38,7 @@ class Model(nn.Module):
 
     def _configure_optimizer(self):
         if self.hyperparams['optimizer'] == "SGD":
-            self.optimizer = optim.SGD(self.parameters(), lr=self.learning_rate)
+            self.optimizer = optim.SGD(self.parameters(), lr=self.learning_rate, momentum=self.hyperparams['momentum'])
         elif self.hyperparams['optimizer'] == "Adam":
             self.optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
         self.lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min')
@@ -51,13 +59,12 @@ class Model(nn.Module):
         loss = self.loss_function(output, y)
         return loss, output
 
-    def evaluate(self, y, predictions): 
-        
+    def evaluate(self, y, predictions):  
         for metric in self.hyperparams['metrics']:  
             out = metric[1](y, predictions)
             self.history[metric[0]] = out
             print(f"{metric[0]}...........DONE({out})")
- 
+         
         return self.history
 
 

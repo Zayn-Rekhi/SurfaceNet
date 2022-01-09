@@ -29,7 +29,7 @@ from network import Model, DEVICE
 
 torch.backends.cudnn.benchmark = True
 
-CTX_stripe = "G14_023651_2056_XI_25N148W"
+CTX_stripe = "D14_032794_1989_XN_18N282W"
 path = "../../data/raw/" + CTX_stripe + ".tiff"
 
 cutouts = {
@@ -66,11 +66,12 @@ test_loader = DataLoader(
 )
 
 hyperparams = {
-    'lr': 0.0001,
+    'lr': 0.001,
     'batch_size': 8,
     'epochs': 300,
     'classes': 15,
-    'optimizer': 'Adam',
+    'optimizer': 'SGD',
+    'momentum': 0.9,
     'loss_function': 'CE',
     'metrics': [
         ("accuracy", lambda X, y: accuracy_score(X, y)),
@@ -79,12 +80,13 @@ hyperparams = {
         ("f1_score", lambda X, y: f1_score(X, y, average='macro')),
         ("confusion_matrix", lambda X, y: confusion_matrix(X, y)), 
     ],
+    'transfer_learning': False,
 }
 
 model = Model(hyperparams)
 
 
-checkpoint = torch.load("/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet/models/model4.pt")
+checkpoint = torch.load("/home/zayn/Desktop/Programming/PYTHON/ML/MarsNet/models/model40.pt")
 model.load_state_dict(checkpoint["model_state"])
 model.to(DEVICE)
 
@@ -123,20 +125,20 @@ cm = from_list(None, plt.cm.tab20(range(0, n)), n)
 
 # Saving Images
 plt.imsave(
-    "./results/" + CTX_stripe + "_" + network_name + "_map.png",
+    "../../results/" + CTX_stripe + "_map.png",
     np.reshape(np.array(predictions), ctx_image.out_shape),
     cmap=cm,
     vmin=0,
     vmax=int(hyperparams["classes"]),
 )
 plt.imsave(
-    "./results/" + CTX_stripe + "_" + network_name + "_img.png",
+    "../../results/" + CTX_stripe + "_img.png",
     np.dstack(
         [np.reshape(np.concatenate(image_pred, axis=0), ctx_image.out_shape)] * 3
     ),
 )
 plt.imsave(
-    "./results/" + CTX_stripe + "_" + network_name + "_mrf.png",
+    "../../results/" + CTX_stripe + "_mrf.png",
     mrf_classes,
     cmap=cm,
     vmin=0,
